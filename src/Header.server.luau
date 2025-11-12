@@ -1,5 +1,9 @@
 local id = math.random()
 
+if not plugin then
+	return
+end
+
 -->> Services <<--
 local Selection = game:GetService("Selection")
 local RunService = game:GetService("RunService")
@@ -7,9 +11,9 @@ local HttpService = game:GetService("HttpService")
 local Terrain = workspace.Terrain
 
 -->> Plugins <<--
-local toolbar = plugin:CreateToolbar("Terrain Converter")
+local toolbar = plugin:CreateToolbar("saveRBXTerrain")
 
-local button = toolbar:CreateButton(id, "Click to toggle.", "rbxassetid://78078303951344", "Terrain Converter")
+local button = toolbar:CreateButton(id, "Click to toggle.", "rbxassetid://78078303951344", "Save RBX Terrain")
 local gui = plugin:CreateDockWidgetPluginGui(
 	id,
 	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Float, false, false, 400, 150, 400, 150)
@@ -27,14 +31,14 @@ local activate = false
 local selectionBox: BasePart
 local renderConnect: RBXScriptConnection
 
-local minPos : Vector3
-local maxPos : Vector3
+local minPos : Vector3int16
+local maxPos : Vector3int16
 local size : Vector3
 
 -->> Initialize <<--
-gui.Title = "Terrain Converter"
+gui.Title = "Save RBX Terrain"
 
-gui.Name = "Terrain_Converter"
+gui.Name = "Save_RBX_Terrain"
 textLabel.Name = "TellPeopleWhatShouldTheyDo"
 regionMin.Name = "Region3MinPos"
 regionMax.Name = "Region3MaxPos"
@@ -108,7 +112,7 @@ local function onButtonClick()
         end
 
 		renderConnect = RunService.PreRender:Connect(function()
-            size = selectionBox.Size
+			size = selectionBox.Size
 			minPos = selectionBox.Position - size / 2
 			maxPos = selectionBox.Position + size / 2
 
@@ -155,27 +159,13 @@ saveTerrain.MouseButton1Click:Connect(function()
 		return
 	end
 
-	local min = selectionBox.Position - selectionBox.Size / 2
-	local max = selectionBox.Position + selectionBox.Size / 2
+	local min = Vector3int16.new(minPos.X, minPos.Y, minPos.Z)
+	local max = Vector3int16.new(maxPos.X, maxPos.Y, maxPos.Z)
 
-	local newRegion3 = Region3.new(min, max):ExpandToGrid(4)
+	local newRegion3 = Region3int16.new(min, max)
 
-	local file = Instance.new("ModuleScript")
-    file.Name = "ConvertedTerrain"
-	file.Parent = workspace
+	local newTerrainRegion = Terrain:CopyRegion(newRegion3) 
+	newTerrainRegion.Parent = workspace
 
-	local materials, occupancies = Terrain:ReadVoxels(newRegion3, 4)
-
-    local encode = HttpService:JSONEncode({
-			["materials"] = convertEnum(materials),
-			["occupancies"] = occupancies,
-		})
-
-	file.Source = (
-    "-- This terrain voxel table has been converted into JSON table, use HttpService:JSONDecode() to get a lua table. \n" ..
-    "-- EnumItems will be convert into the value. \n\n"
-     .. `return "{string.gsub(encode, '"', '\\"')}"`
-    )
-
-	Selection:Set({ file })
+	Selection:Set({ newTerrainRegion })
 end)

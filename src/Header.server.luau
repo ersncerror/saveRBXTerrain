@@ -10,6 +10,17 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local Terrain = workspace.Terrain
 
+local PluginEnvironment = script.Parent
+
+-->> Modules <<--
+local pathToInstance = require(PluginEnvironment.utils.pathToInstance)
+
+-->> Constants <<--
+local KEY_SAVE_LOCATION = "saveLocation"
+local OUTPUT_HEADER_TEXT = "[saveRBXTerrian]:"
+
+local DEFAULT_SAVE_LOCATION = game:GetService("ServerStorage")
+
 -->> Plugins <<--
 local toolbar = plugin:CreateToolbar("saveRBXTerrain")
 
@@ -24,6 +35,10 @@ local regionMin = Instance.new("TextLabel")
 local regionMax = Instance.new("TextLabel")
 
 local saveTerrain = Instance.new("TextButton")
+local setSaveLocationBtn = Instance.new("TextButton")
+
+local saveLocation = plugin:GetSetting(KEY_SAVE_LOCATION) :: string
+local tempLocate : Instance?
 
 -->> Variables <<--
 local activate = false
@@ -43,11 +58,13 @@ textLabel.Name = "TellPeopleWhatShouldTheyDo"
 regionMin.Name = "Region3MinPos"
 regionMax.Name = "Region3MaxPos"
 saveTerrain.Name = "SaveTerrain"
+setSaveLocationBtn.Name = "SetSaveLocation"
 
 textLabel.Text = "Adjust the part size/position to set the work area, then click save/export."
 regionMin.Text = ""
 regionMax.Text = ""
 saveTerrain.Text = "Save"
+setSaveLocationBtn.Text = "Set Save Location"
 
 textLabel.BackgroundTransparency = 1
 regionMin.BackgroundTransparency = 0.5
@@ -56,36 +73,53 @@ regionMax.BackgroundTransparency = 0.5
 regionMin.BackgroundColor3 = Color3.new(0, 0, 0)
 regionMax.BackgroundColor3 = Color3.new(0, 0, 0)
 saveTerrain.BackgroundColor3 = Color3.fromRGB(125, 125, 125)
+setSaveLocationBtn.BackgroundColor3 = Color3.fromRGB(125, 125, 125)
 
 textLabel.TextScaled = true
 regionMin.TextScaled = true
 regionMax.TextScaled = true
 saveTerrain.TextScaled = true
+setSaveLocationBtn.TextScaled = true
 
 textLabel.Size = UDim2.new(1, -10, 0.25, -5)
 regionMin.Size = UDim2.new(0.5, -10, 0.25, 0)
 regionMax.Size = UDim2.new(0.5, -10, 0.25, 0)
 saveTerrain.Size = UDim2.new(0.5, -10, 0.25, 0)
+setSaveLocationBtn.Size = UDim2.new(0.5, -10, 0.25, 0)
 
 textLabel.Position = UDim2.fromOffset(5, 5)
 regionMin.Position = UDim2.new(0, 5, 0.25, 0)
 regionMax.Position = UDim2.new(0.5, 5, 0.25, 0)
 saveTerrain.Position = UDim2.new(0, 5, 0.75, -5)
+setSaveLocationBtn.Position = UDim2.new(0.5, 5, 0.75, -5)
 
 textLabel.BorderSizePixel = 0
 regionMin.BorderSizePixel = 0
 regionMax.BorderSizePixel = 0
 saveTerrain.BorderSizePixel = 0
+setSaveLocationBtn.BorderSizePixel = 0
 
 textLabel.TextColor3 = Color3.new(1, 1, 1)
 regionMin.TextColor3 = Color3.new(1, 1, 1)
 regionMax.TextColor3 = Color3.new(1, 1, 1)
 saveTerrain.TextColor3 = Color3.new(1, 1, 1)
+setSaveLocationBtn.TextColor3 = Color3.new(1, 1, 1)
 
 textLabel.Parent = gui
 regionMin.Parent = gui
 regionMax.Parent = gui
 saveTerrain.Parent = gui
+setSaveLocationBtn.Parent = gui
+
+if saveLocation ~= nil then
+	tempLocate = pathToInstance(saveLocation)
+
+	if tempLocate == nil then
+		tempLocate = DEFAULT_SAVE_LOCATION
+		warn(`{OUTPUT_HEADER_TEXT} Failed to find instance through path ({saveLocation}). The save location has been temporary set to {DEFAULT_SAVE_LOCATION.Name}.`)
+	end
+
+end
 
 local function onButtonClick()
 	activate = not activate
@@ -130,20 +164,14 @@ local function onButtonClick()
 	end
 end
 
-local function convertEnum(t: {[any]: { [any]: any} | EnumItem | number | Vector3})
-    local converted = {}
+local function setSaveLocation()
+	local location = Selection:Get()[1] :: Instance
+	local pathToLocation = location:GetFullName()
 
-    for i, v in t do
-        if typeof(v) == "table" then
-            converted[i] = convertEnum(v)
-        elseif typeof(v) == "EnumItem" then
-			converted[i] = v.Value
-        else
-            converted[i] = v
-        end
-    end
+	plugin:SetSetting(KEY_SAVE_LOCATION, pathToLocation)
+	tempLocate = location
 
-    return converted
+	print(`{OUTPUT_HEADER_TEXT} The save location has been set to: {pathToLocation}`)
 end
 
 gui:GetPropertyChangedSignal("Enabled"):Connect(function()
@@ -153,6 +181,7 @@ gui:GetPropertyChangedSignal("Enabled"):Connect(function()
 end)
 
 button.Click:Connect(onButtonClick)
+setSaveLocationBtn.MouseButton1Click:Connect(setSaveLocation)
 
 saveTerrain.MouseButton1Click:Connect(function()
 	if not selectionBox then
@@ -165,7 +194,7 @@ saveTerrain.MouseButton1Click:Connect(function()
 	local newRegion3 = Region3int16.new(min, max)
 
 	local newTerrainRegion = Terrain:CopyRegion(newRegion3) 
-	newTerrainRegion.Parent = workspace
+	newTerrainRegion.Parent = tempLocate
 
 	Selection:Set({ newTerrainRegion })
 end)
